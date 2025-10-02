@@ -1,4 +1,3 @@
-import { buffer } from 'micro';
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 export const config = {
@@ -7,6 +6,14 @@ export const config = {
   },
 };
 
+async function buffer(readable) {
+  const chunks = [];
+  for await (const chunk of readable) {
+    chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks);
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -14,6 +21,10 @@ export default async function handler(req, res) {
 
   const buf = await buffer(req);
   const sig = req.headers['stripe-signature'];
+
+  if (!sig) {
+    return res.status(400).json({ error: 'Missing signature' });
+  }
 
   try {
     const event = stripe.webhooks.constructEvent(
@@ -30,16 +41,16 @@ export default async function handler(req, res) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: session.customer_email,
+          email: session.customer_email || session.customer_details?.email,
           paymentId: session.payment_intent,
-          plan: session.metadata.plan
+          plan: session.metadata?.plan || 'monthly'
         })
       });
     }
 
     res.json({ received: true });
   } catch (error) {
-    console.error('Webhook error:', error);
-    return res.status(400).json({ error: 'Webhook error' });
+    console.error('Webhook error:', error.message);
+    return res.status(400).json({ error: `Webhook error: ${error.message}` });
   }
 }
