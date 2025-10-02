@@ -7,10 +7,14 @@ export default async function handler(req, res) {
 
   const { plan, currency = 'USD' } = req.query;
 
-  try {
-    let amount;
-    let currencyCode;
+  if (!plan) {
+    return res.status(400).json({ error: 'Plan parameter required' });
+  }
 
+  try {
+    let amount, currencyCode;
+
+    // Set price based on currency
     if (currency === 'IDR') {
       currencyCode = 'idr';
       amount = plan === 'monthly' ? 79000 : 1250000;
@@ -19,31 +23,46 @@ export default async function handler(req, res) {
       amount = plan === 'monthly' ? 499 : 7900;
     }
 
-    let priceData = {
+    const priceData = {
       currency: currencyCode,
       product_data: {
         name: `Code Bridge Pro - ${plan === 'monthly' ? 'Monthly' : 'Lifetime'}`,
-        description: 'Unlimited code extractions and premium features'
+        description: 'Unlimited code extractions from Perplexity AI'
       },
-      unit_amount: amount,
+      unit_amount: amount
     };
 
+    // Add recurring for monthly plan
     if (plan === 'monthly') {
       priceData.recurring = { interval: 'month' };
     }
 
+    // Create Stripe checkout session
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items: [{ price_data: priceData, quantity: 1 }],
+      line_items: [
+        {
+          price_data: priceData,
+          quantity: 1,
+        },
+      ],
       mode: plan === 'monthly' ? 'subscription' : 'payment',
-      success_url: `${req.headers.origin}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${req.headers.origin}/pricing`,
-      metadata: { currency, plan }
+      success_url: 'https://landing-chi-lovat.vercel.app/success?session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: 'https://landing-chi-lovat.vercel.app/pricing',
+      metadata: {
+        plan: plan,
+        currency: currency
+      }
     });
 
+    // Redirect to Stripe checkout
     return res.redirect(303, session.url);
+
   } catch (error) {
-    console.error('Checkout error:', error);
-    return res.status(500).json({ error: error.message });
+    console.error('Stripe checkout error:', error);
+    return res.status(500).json({ 
+      error: 'Failed to create checkout session',
+      message: error.message 
+    });
   }
 }

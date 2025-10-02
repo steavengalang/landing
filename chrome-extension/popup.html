@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Code Bridge Pro</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+    
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 620px;
+      max-height: 750px;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, #0a0a0a 0%, #1a0a0a 100%);
+      color: #ffffff;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: 
+        radial-gradient(circle at 10% 20%, rgba(220, 38, 38, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 90% 80%, rgba(220, 38, 38, 0.1) 0%, transparent 40%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .header {
+      padding: 35px 30px 30px;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(10, 10, 10, 0.95);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .logo {
+      font-size: 38px;
+      filter: drop-shadow(0 0 20px rgba(220, 38, 38, 0.6));
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    .header h1 {
+      font-size: 24px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #ffffff 0%, #dc2626 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: -0.5px;
+    }
+
+    .header .subtitle {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+      font-weight: 500;
+      margin-top: 8px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .container {
+      padding: 30px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .btn-primary {
+      width: 100%;
+      padding: 18px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.04) 100%);
+      backdrop-filter: blur(10px);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 16px;
+      cursor: pointer;
+      font-size: 15px;
+      font-weight: 700;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(220, 38, 38, 0.3);
+      border-color: rgba(220, 38, 38, 0.4);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0px);
+    }
+
+    .btn-send {
+      background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+      border: 1px solid rgba(220, 38, 38, 0.3);
+      margin-top: 16px;
+    }
+
+    .btn-send:hover {
+      box-shadow: 0 8px 32px rgba(220, 38, 38, 0.5);
+    }
+
+    .status-card {
+      margin-top: 24px;
+      padding: 18px 24px;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+      backdrop-filter: blur(20px);
+      border-radius: 14px;
+      font-size: 13px;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.8);
+      font-weight: 500;
+    }
+
+    .stats-container {
+      display: none;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 26px;
+      font-weight: 900;
+      background: linear-gradient(135deg, #ffffff 0%, #dc2626 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 600;
+    }
+
+    .file-manager {
+      margin-top: 24px;
+      display: none;
+    }
+
+    .file-header-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.9);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .file-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .file-card {
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.03) 100%);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 16px;
+      transition: all 0.3s;
+    }
+
+    .file-card:hover {
+      border-color: rgba(220, 38, 38, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .file-card.removing {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+
+    .file-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .file-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .file-number {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 800;
+      color: white;
+    }
+
+    .file-lang {
+      padding: 6px 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.7);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .file-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-delete {
+      padding: 8px 14px;
+      background: rgba(220, 38, 38, 0.15);
+      border: 1px solid rgba(220, 38, 38, 0.3);
+      border-radius: 8px;
+      color: #dc2626;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .btn-delete:hover {
+      background: rgba(220, 38, 38, 0.25);
+      transform: scale(1.05);
+    }
+
+    .file-input {
+      width: 100%;
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      color: white;
+      font-size: 13px;
+      font-weight: 500;
+      font-family: 'Inter', monospace;
+      margin-bottom: 10px;
+      transition: all 0.3s;
+    }
+
+    .file-input:focus {
+      outline: none;
+      border-color: rgba(220, 38, 38, 0.5);
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .toggle-preview {
+      width: 100%;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .toggle-preview:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(220, 38, 38, 0.3);
+    }
+
+    .code-preview {
+      margin-top: 10px;
+      padding: 14px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.8);
+      max-height: 150px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(220, 38, 38, 0.5);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(220, 38, 38, 0.7);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo-container">
+      <div class="logo">⚡</div>
+    </div>
+    <h1>CODE BRIDGE PRO</h1>
+    <div class="subtitle">Perplexity → VS Code</div>
+  </div>
+
+  <div class="container">
+    <button id="extractBtn" class="btn-primary">
+      <span>📥</span>
+      <span>Extract Code Blocks</span>
+    </button>
+
+    <div id="statsContainer" class="stats-container">
+      <div class="stat-card">
+        <div class="stat-value" id="fileCount">0</div>
+        <div class="stat-label">Files</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="lineCount">0</div>
+        <div class="stat-label">Lines</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="sizeCount">0</div>
+        <div class="stat-label">Size</div>
+      </div>
+    </div>
+
+    <div id="fileManager" class="file-manager">
+      <div class="file-header-title">
+        <span>📁</span>
+        <span id="fileCountLabel">0 files</span>
+      </div>
+      <div id="fileList" class="file-list"></div>
+    </div>
+    
+    <button id="sendBtn" class="btn-primary btn-send" style="display:none;">
+      <span>🚀</span>
+      <span>Send to VS Code</span>
+    </button>
+
+    <div id="status" class="status-card">Ready to extract code blocks from Perplexity</div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
