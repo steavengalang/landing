@@ -177,6 +177,83 @@
       font-weight: 600;
     }
 
+    .license-section {
+      display: none;
+      margin-top: 24px;
+      padding: 24px;
+      background: linear-gradient(135deg, rgba(74, 222, 128, 0.1) 0%, rgba(34, 197, 94, 0.05) 100%);
+      border: 1px solid rgba(74, 222, 128, 0.2);
+      border-radius: 16px;
+    }
+
+    .license-title {
+      text-align: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: #4ade80;
+      margin-bottom: 8px;
+    }
+
+    .license-subtitle {
+      text-align: center;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 16px;
+    }
+
+    .license-input {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(74, 222, 128, 0.3);
+      border-radius: 10px;
+      color: white;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: 'Courier New', monospace;
+      text-align: center;
+      letter-spacing: 2px;
+      margin-bottom: 12px;
+    }
+
+    .license-input:focus {
+      outline: none;
+      border-color: #4ade80;
+      box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.1);
+    }
+
+    .btn-activate {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+      color: #000;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+
+    .btn-activate:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(74, 222, 128, 0.4);
+    }
+
+    .free-tier-link {
+      display: block;
+      text-align: center;
+      margin-top: 12px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.5);
+      text-decoration: none;
+      transition: color 0.3s;
+    }
+
+    .free-tier-link:hover {
+      color: rgba(255, 255, 255, 0.8);
+    }
+
     .file-manager {
       margin-top: 24px;
       display: none;
@@ -376,6 +453,24 @@
         <div class="stat-value" id="sizeCount">0</div>
         <div class="stat-label">Size</div>
       </div>
+    </div>
+
+    <!-- LICENSE ACTIVATION SECTION -->
+    <div id="licenseSection" class="license-section">
+      <div class="license-title">🔑 Have a Pro License?</div>
+      <div class="license-subtitle">Enter your license key to unlock unlimited extractions</div>
+      <input 
+        type="text" 
+        id="licenseInput" 
+        class="license-input"
+        placeholder="CB-XXXXX-XXXXX-XXXXX"
+      />
+      <button id="activateBtn" class="btn-activate">
+        ✅ Activate Pro License
+      </button>
+      <a href="#" id="showFreeTierLink" class="free-tier-link">
+        Continue with Free Tier (3/day)
+      </a>
     </div>
 
     <div id="fileManager" class="file-manager">

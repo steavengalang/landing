@@ -8,8 +8,13 @@ let lastVerified = 0;
 // INITIALIZATION & LICENSE VERIFICATION
 // ========================================
 
-// Load license & verify on startup
-chrome.storage.sync.get(['licenseKey', 'tier', 'lastVerified'], async (result) => {
+chrome.storage.sync.get(['licenseKey', 'tier', 'lastVerified', 'firstOpen'], async (result) => {
+  if (!result.firstOpen) {
+    // First time open - show license section
+    document.getElementById('licenseSection').style.display = 'block';
+    chrome.storage.sync.set({ firstOpen: true });
+  }
+
   if (result.licenseKey) {
     licenseKey = result.licenseKey;
     lastVerified = result.lastVerified || 0;
@@ -28,7 +33,6 @@ chrome.storage.sync.get(['licenseKey', 'tier', 'lastVerified'], async (result) =
   updateUI();
 });
 
-// Verify license with server
 async function verifyLicense(key) {
   try {
     const response = await fetch(`${API_URL}/api/verify-license`, {
@@ -48,7 +52,6 @@ async function verifyLicense(key) {
       });
       return true;
     } else {
-      // License invalid - downgrade to free
       userTier = 'free';
       licenseKey = null;
       chrome.storage.sync.set({ 
@@ -57,7 +60,6 @@ async function verifyLicense(key) {
         lastVerified: Date.now()
       });
       
-      // Show reason to user
       if (data.reason) {
         showLicenseError(data.reason);
       }
@@ -66,15 +68,12 @@ async function verifyLicense(key) {
   } catch (error) {
     console.error('License verification failed:', error);
     
-    // Grace period: allow if last verified < 24h ago
     const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
     
     if (lastVerified > twentyFourHoursAgo) {
-      console.log('Using cached license (grace period)');
       return true;
     }
     
-    // After grace period, downgrade to free
     userTier = 'free';
     return false;
   }
@@ -89,10 +88,126 @@ function showLicenseError(reason) {
     <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-bottom:12px;">
       Please check your license or upgrade to Pro.
     </div>
-    <button onclick="window.open('${API_URL}/pricing')" style="padding:12px 24px;background:linear-gradient(135deg,#dc2626,#991b1b);color:white;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-size:13px;width:100%;">
+    <button id="getLicenseBtn" style="padding:12px 24px;background:linear-gradient(135deg,#dc2626,#991b1b);color:white;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-size:13px;width:100%;">
       Get Valid License
     </button>
   `;
+  
+  setTimeout(() => {
+    const btn = document.getElementById('getLicenseBtn');
+    if (btn) btn.addEventListener('click', () => {
+      chrome.tabs.create({ url: `${API_URL}/pricing` });
+    });
+  }, 50);
+}
+
+// ========================================
+// LICENSE ACTIVATION UI
+// ========================================
+
+document.getElementById('activateBtn').addEventListener('click', async () => {
+  const input = document.getElementById('licenseInput');
+  const key = input.value.trim().toUpperCase();
+  
+  if (!key) {
+    alert('Please enter a license key');
+    return;
+  }
+  
+  if (!key.startsWith('CB-') || key.length !== 27) {
+    alert('Invalid license key format. Should be: CB-XXXXX-XXXXX-XXXXX');
+    return;
+  }
+  
+  const btn = document.getElementById('activateBtn');
+  const originalText = btn.textContent;
+  btn.textContent = '⏳ Verifying...';
+  btn.disabled = true;
+  
+  const isValid = await verifyLicense(key);
+  
+  if (isValid) {
+    licenseKey = key;
+    userTier = 'pro';
+    chrome.storage.sync.set({ licenseKey: key, tier: 'pro' });
+    
+    document.getElementById('licenseSection').style.display = 'none';
+    
+    alert('🎉 Pro license activated! Enjoy unlimited extractions!');
+    updateUI();
+  } else {
+    alert('❌ Invalid license key. Please check and try again.');
+    btn.textContent = originalText;
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('showFreeTierLink').addEventListener('click', (e) => {
+  e.preventDefault();
+  document.getElementById('licenseSection').style.display = 'none';
+  userTier = 'free';
+  chrome.storage.sync.set({ tier: 'free' });
+  updateUI();
+});
+
+// ========================================
+// UI UPDATE
+// ========================================
+
+function updateUI() {
+  const header = document.querySelector('.header');
+  const existingBadge = document.getElementById('pro-badge');
+  const existingActivateBtn = document.getElementById('headerActivateBtn');
+  
+  if (userTier === 'pro' && !existingBadge) {
+    const badge = document.createElement('div');
+    badge.id = 'pro-badge';
+    badge.style.cssText = `
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: linear-gradient(135deg, #4ade80, #22c55e);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: bold;
+      color: #000;
+    `;
+    badge.textContent = '⭐ PRO';
+    header.appendChild(badge);
+    
+    if (existingActivateBtn) existingActivateBtn.remove();
+  } else if (userTier === 'free' && !existingActivateBtn) {
+    const activateBtn = document.createElement('button');
+    activateBtn.id = 'headerActivateBtn';
+    activateBtn.style.cssText = `
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s;
+    `;
+    activateBtn.textContent = '🔑 Activate License';
+    activateBtn.addEventListener('click', () => {
+      document.getElementById('licenseSection').style.display = 'block';
+    });
+    activateBtn.addEventListener('mouseenter', () => {
+      activateBtn.style.background = 'rgba(255,255,255,0.15)';
+    });
+    activateBtn.addEventListener('mouseleave', () => {
+      activateBtn.style.background = 'rgba(255,255,255,0.1)';
+    });
+    header.appendChild(activateBtn);
+    
+    if (existingBadge) existingBadge.remove();
+  }
 }
 
 // ========================================
@@ -100,19 +215,15 @@ function showLicenseError(reason) {
 // ========================================
 
 async function trackUsage() {
-  // For Pro users: verify license BEFORE allowing extraction
   if (userTier === 'pro' && licenseKey) {
-    // Re-verify license for extra security
     const isValid = await verifyLicense(licenseKey);
     if (!isValid) {
       userTier = 'free';
-      // Continue to free tier check below
     } else {
-      return true; // Pro verified, allow extraction
+      return true;
     }
   }
   
-  // Free tier - check daily limit
   const userId = await getOrCreateUserId();
   
   try {
@@ -122,13 +233,12 @@ async function trackUsage() {
       body: JSON.stringify({ 
         userId, 
         tier: userTier,
-        licenseKey: licenseKey || null // Send license for server-side verification
+        licenseKey: licenseKey || null
       })
     });
     
     const data = await response.json();
     
-    // Check if server downgraded user
     if (data.downgraded || data.expired) {
       userTier = 'free';
       licenseKey = null;
@@ -150,7 +260,6 @@ async function trackUsage() {
     return true;
   } catch (error) {
     console.error('Track usage failed:', error);
-    // On network error, allow extraction but log error
     return true;
   }
 }
@@ -159,54 +268,41 @@ async function getOrCreateUserId() {
   const result = await chrome.storage.local.get(['userId']);
   if (result.userId) return result.userId;
   
-  // Generate unique user ID with timestamp
   const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
   await chrome.storage.local.set({ userId });
   return userId;
 }
 
 function showUpgradePrompt(data) {
-  document.getElementById('status').innerHTML = `
+  const statusDiv = document.getElementById('status');
+  statusDiv.innerHTML = `
     <div style="color:#dc2626;font-weight:700;font-size:14px;margin-bottom:10px;">
       ⚠️ Daily Limit Reached (${data.usage}/${data.limit})
     </div>
     <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-bottom:12px;">
       Upgrade to Pro for unlimited extractions!
     </div>
-    <button onclick="window.open('${API_URL}/pricing')" style="padding:12px 24px;background:linear-gradient(135deg,#dc2626,#991b1b);color:white;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-size:13px;width:100%;">
+    <button id="upgradeBtn" style="padding:12px 24px;background:linear-gradient(135deg,#dc2626,#991b1b);color:white;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-size:13px;width:100%;transition:all 0.3s;">
       ⭐ Upgrade to Pro - $4.99/mo
     </button>
   `;
-}
-
-// ========================================
-// UI UPDATE
-// ========================================
-
-function updateUI() {
-  // Update Pro badge if user is Pro
-  const header = document.querySelector('.header');
-  const existingBadge = document.getElementById('pro-badge');
   
-  if (userTier === 'pro' && !existingBadge) {
-    const badge = document.createElement('div');
-    badge.id = 'pro-badge';
-    badge.style.cssText = `
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      background: linear-gradient(135deg, #dc2626, #991b1b);
-      padding: 6px 12px;
-      border-radius: 8px;
-      font-size: 11px;
-      font-weight: bold;
-      color: white;
-    `;
-    badge.textContent = '⭐ PRO';
-    header.appendChild(badge);
-  } else if (userTier !== 'pro' && existingBadge) {
-    existingBadge.remove();
-  }
+  setTimeout(() => {
+    const upgradeBtn = document.getElementById('upgradeBtn');
+    if (upgradeBtn) {
+      upgradeBtn.addEventListener('click', () => {
+        chrome.tabs.create({ url: `${API_URL}/pricing` });
+      });
+      upgradeBtn.addEventListener('mouseenter', () => {
+        upgradeBtn.style.transform = 'translateY(-2px)';
+        upgradeBtn.style.boxShadow = '0 8px 24px rgba(220, 38, 38, 0.4)';
+      });
+      upgradeBtn.addEventListener('mouseleave', () => {
+        upgradeBtn.style.transform = 'translateY(0)';
+        upgradeBtn.style.boxShadow = 'none';
+      });
+    }
+  }, 50);
 }
 
 // ========================================
@@ -400,7 +496,6 @@ document.getElementById('sendBtn').addEventListener('click', async () => {
     return;
   }
 
-  // Update filenames from input
   extractedCodeBlocks.forEach((block, index) => {
     const input = document.getElementById(`filename-${index}`);
     if (input && input.value.trim()) {
