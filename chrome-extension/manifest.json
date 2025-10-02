@@ -1,37 +1,41 @@
 {
-    "manifest_version": 3,
-    "name": "Code Bridge Pro",
-    "version": "1.0.0",
-    "description": "Extract code from Perplexity AI to VS Code instantly",
-    "permissions": [
-      "activeTab",
-      "storage",
-      "scripting"
-    ],
-    "host_permissions": [
-      "https://www.perplexity.ai/*"
-    ],
-    "action": {
-      "default_popup": "popup.html",
-      "default_icon": {
-        "16": "icons/icon16.png",
-        "48": "icons/icon48.png",
-        "128": "icons/icon128.png"
-      }
-    },
-    "background": {
-      "service_worker": "background.js"
-    },
-    "content_scripts": [
-      {
-        "matches": ["https://www.perplexity.ai/*"],
-        "js": ["content.js"]
-      }
-    ],
-    "icons": {
+  "manifest_version": 3,
+  "name": "Code Bridge Pro",
+  "version": "1.0.0",
+  "description": "Extract code from Perplexity AI to VS Code instantly",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "scripting",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://www.perplexity.ai/*"
+  ],
+  "externally_connectable": {
+    "matches": [
+      "https://landing-chi-lovat.vercel.app/*",
+      "https://*.vercel.app/*"
+    ]
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [{
+    "matches": ["https://www.perplexity.ai/*"],
+    "js": ["content.js"]
+  }],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
   }
-  
+}
