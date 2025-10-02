@@ -13,16 +13,17 @@ chrome.runtime.onInstalled.addListener((details) => {
     chrome.tabs.create({
       url: `${API_URL}?installed=true`
     });
+    
+    // Set up periodic verification alarm
+    chrome.alarms.create('verifyLicense', { periodInMinutes: 360 }); // 6 hours
   }
   
   if (details.reason === 'update') {
-    console.log('Code Bridge Pro updated!');
+    console.log('Code Bridge Pro updated to version:', chrome.runtime.getManifest().version);
   }
 });
 
-// Periodic license verification (every 6 hours)
-chrome.alarms.create('verifyLicense', { periodInMinutes: 360 }); // 6 hours
-
+// Listen for alarms
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'verifyLicense') {
     verifyStoredLicense();
@@ -30,44 +31,47 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 });
 
 async function verifyStoredLicense() {
-  const result = await chrome.storage.sync.get(['licenseKey']);
-  
-  if (result.licenseKey) {
-    try {
-      const response = await fetch(`${API_URL}/api/verify-license`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ licenseKey: result.licenseKey })
+  try {
+    const result = await chrome.storage.sync.get(['licenseKey']);
+    
+    if (!result.licenseKey) {
+      console.log('No license to verify');
+      return;
+    }
+    
+    const response = await fetch(`${API_URL}/api/verify-license`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ licenseKey: result.licenseKey })
+    });
+    
+    const data = await response.json();
+    
+    if (data.valid) {
+      await chrome.storage.sync.set({ 
+        tier: data.tier,
+        lastVerified: Date.now()
+      });
+      console.log('License verified:', data.tier);
+    } else {
+      // License invalid - downgrade
+      await chrome.storage.sync.set({ 
+        tier: 'free',
+        licenseKey: null,
+        lastVerified: Date.now()
       });
       
-      const data = await response.json();
-      
-      if (data.valid) {
-        chrome.storage.sync.set({ 
-          tier: data.tier,
-          lastVerified: Date.now()
-        });
-        console.log('License verified:', data.tier);
-      } else {
-        // License invalid - downgrade
-        chrome.storage.sync.set({ 
-          tier: 'free',
-          licenseKey: null,
-          lastVerified: Date.now()
-        });
-        
-        // Show notification
-        chrome.notifications.create({
-          type: 'basic',
-          iconUrl: 'icons/icon128.png',
-          title: 'License Invalid',
-          message: `Your license is no longer valid: ${data.reason || 'Unknown reason'}`,
-          priority: 2
-        });
-      }
-    } catch (error) {
-      console.error('Background license verification failed:', error);
+      // Show notification
+      chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon128.png',
+        title: 'License Invalid',
+        message: `Your license is no longer valid: ${data.reason || 'Unknown reason'}`,
+        priority: 2
+      });
     }
+  } catch (error) {
+    console.error('Background license verification failed:', error);
   }
 }
 
@@ -88,25 +92,25 @@ chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => 
       body: JSON.stringify({ licenseKey })
     })
     .then(res => res.json())
-    .then(data => {
+    .then(async data => {
       if (data.valid) {
         // Save license
-        chrome.storage.sync.set({ 
+        await chrome.storage.sync.set({ 
           licenseKey: licenseKey,
           tier: 'pro',
           lastVerified: Date.now(),
           expiresAt: data.expiresAt
-        }, () => {
-          sendResponse({ success: true });
-          
-          // Show success notification
-          chrome.notifications.create({
-            type: 'basic',
-            iconUrl: 'icons/icon128.png',
-            title: 'Code Bridge Pro Activated! 🎉',
-            message: 'Your Pro license has been activated. Enjoy unlimited extractions!',
-            priority: 2
-          });
+        });
+        
+        sendResponse({ success: true });
+        
+        // Show success notification
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: 'icons/icon128.png',
+          title: 'Code Bridge Pro Activated! 🎉',
+          message: 'Your Pro license has been activated. Enjoy unlimited extractions!',
+          priority: 2
         });
       } else {
         sendResponse({ success: false, error: data.reason || 'Invalid license' });
@@ -118,18 +122,25 @@ chrome.runtime.onMessageExternal.addListener((request, sender, sendResponse) => 
     
     return true; // Keep channel open for async response
   }
+  
+  return true;
 });
 
-// Track daily usage for analytics (optional)
-chrome.storage.local.get(['dailyExtractions'], (result) => {
-  const today = new Date().toISOString().split('T')[0];
-  const daily = result.dailyExtractions || {};
-  
-  if (!daily[today]) {
-    daily[today] = 0;
+// Listen for internal messages (from popup/content script)
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.type === 'updateBadge') {
+    // Update extension badge with code block count
+    const count = request.count;
+    if (count > 0) {
+      chrome.action.setBadgeText({ text: count.toString() });
+      chrome.action.setBadgeBackgroundColor({ color: '#dc2626' });
+    } else {
+      chrome.action.setBadgeText({ text: '' });
+    }
+    sendResponse({ success: true });
   }
   
-  chrome.storage.local.set({ dailyExtractions: daily });
+  return true;
 });
 
 console.log('Code Bridge Pro background service started');
