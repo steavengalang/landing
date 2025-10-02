@@ -1,10 +1,39 @@
-// Content script untuk detect code blocks di Perplexity
-console.log('Code Bridge: Content script loaded on Perplexity.ai');
+// ========================================
+// CONTENT SCRIPT (PERPLEXITY.AI PAGE)
+// ========================================
 
-// Optional: Auto-detect code blocks saat page load
-window.addEventListener('load', () => {
-  const codeBlocks = document.querySelectorAll('pre code');
-  if (codeBlocks.length > 0) {
-    console.log(`Code Bridge: Found ${codeBlocks.length} code blocks`);
+console.log('Code Bridge Pro: Content script loaded on Perplexity.ai');
+
+// Monitor for code blocks on page
+let codeBlockCount = 0;
+
+function detectCodeBlocks() {
+  const codeElements = document.querySelectorAll('pre code');
+  const newCount = codeElements.length;
+  
+  if (newCount !== codeBlockCount) {
+    codeBlockCount = newCount;
+    console.log(`Code Bridge: Detected ${codeBlockCount} code blocks`);
+    
+    // Update badge on extension icon
+    chrome.runtime.sendMessage({ 
+      type: 'updateBadge', 
+      count: codeBlockCount 
+    });
   }
+}
+
+// Detect code blocks on load
+window.addEventListener('load', detectCodeBlocks);
+
+// Monitor for dynamically loaded code blocks
+const observer = new MutationObserver(detectCodeBlocks);
+observer.observe(document.body, {
+  childList: true,
+  subtree: true
 });
+
+// Security: Prevent tampering with extension
+Object.freeze(chrome);
+Object.freeze(chrome.runtime);
+Object.freeze(chrome.storage);

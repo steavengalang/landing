@@ -10,7 +10,8 @@
     "notifications"
   ],
   "host_permissions": [
-    "https://www.perplexity.ai/*"
+    "https://www.perplexity.ai/*",
+    "https://landing-chi-lovat.vercel.app/*"
   ],
   "externally_connectable": {
     "matches": [
@@ -29,10 +30,12 @@
   "background": {
     "service_worker": "background.js"
   },
-  "content_scripts": [{
-    "matches": ["https://www.perplexity.ai/*"],
-    "js": ["content.js"]
-  }],
+  "content_scripts": [
+    {
+      "matches": ["https://www.perplexity.ai/*"],
+      "js": ["content.js"]
+    }
+  ],
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
