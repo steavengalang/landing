@@ -15,13 +15,18 @@ export default async function handler(req, res) {
     let amount, currencyCode;
 
     // Set price based on currency
+    // SALAH (sekarang):
     if (currency === 'IDR') {
       currencyCode = 'idr';
-      amount = plan === 'monthly' ? 79000 : 1250000;
-    } else {
-      currencyCode = 'usd';
-      amount = plan === 'monthly' ? 499 : 7900;
+      amount = plan === 'monthly' ? 79000 : 1250000;  // ❌ INI SALAH!
     }
+
+    // BENER:
+    if (currency === 'IDR') {
+      currencyCode = 'idr';
+      amount = plan === 'monthly' ? 7900000 : 125000000;  // ✅ INI BENER!
+    }
+
 
     const priceData = {
       currency: currencyCode,
