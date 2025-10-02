@@ -1,5 +1,4 @@
 import { Redis } from '@upstash/redis';
-const redis = Redis.fromEnv();
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -13,7 +12,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    const license = await kv.get(`license:${licenseKey}`);
+    const redisUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+    const redisToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+
+    const redis = new Redis({
+      url: redisUrl,
+      token: redisToken,
+    });
+
+    const license = await redis.get(`license:${licenseKey}`);
 
     if (!license) {
       return res.json({ valid: false, tier: 'free' });

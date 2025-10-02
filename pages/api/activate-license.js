@@ -1,5 +1,4 @@
 import { Redis } from '@upstash/redis';
-const redis = Redis.fromEnv();
 import crypto from 'crypto';
 
 function generateLicenseKey(email) {
@@ -21,6 +20,14 @@ export default async function handler(req, res) {
   }
 
   try {
+    const redisUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+    const redisToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+
+    const redis = new Redis({
+      url: redisUrl,
+      token: redisToken,
+    });
+
     const licenseKey = generateLicenseKey(email);
 
     let expiresAt;
@@ -31,16 +38,17 @@ export default async function handler(req, res) {
       expiresAt.setFullYear(expiresAt.getFullYear() + 1);
     }
 
-    await kv.set(`license:${licenseKey}`, {
+    const licenseData = {
       email,
       tier: 'pro',
       plan,
       paymentId,
       activatedAt: new Date().toISOString(),
       expiresAt: expiresAt.toISOString()
-    });
+    };
 
-    await kv.set(`email:${email}`, licenseKey);
+    await redis.set(`license:${licenseKey}`, JSON.stringify(licenseData));
+    await redis.set(`email:${email}`, licenseKey);
 
     return res.json({ 
       success: true, 
