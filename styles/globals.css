@@ -2,16 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  * {
-    @apply border-border;
-  }
-  
-  body {
-    @apply bg-dark text-white antialiased;
-  }
-}
-
 @layer utilities {
   .animate-gradient {
     background-size: 200% auto;
