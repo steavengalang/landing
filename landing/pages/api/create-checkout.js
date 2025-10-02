@@ -8,8 +8,7 @@ export default async function handler(req, res) {
   const { plan, currency = 'USD' } = req.query;
 
   try {
-    let amount;
-    let currencyCode;
+    let amount, currencyCode;
 
     if (currency === 'IDR') {
       currencyCode = 'idr';
@@ -19,27 +18,26 @@ export default async function handler(req, res) {
       amount = plan === 'monthly' ? 499 : 7900;
     }
 
-    let priceData = {
+    const priceData = {
       currency: currencyCode,
       product_data: {
         name: `Code Bridge Pro - ${plan === 'monthly' ? 'Monthly' : 'Lifetime'}`,
-        description: 'Unlimited code extractions and premium features'
+        description: 'Unlimited code extractions'
       },
-      unit_amount: amount,
+      unit_amount: amount
     };
 
     if (plan === 'monthly') {
       priceData.recurring = { interval: 'month' };
     }
 
-    // HARDCODE URL
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{ price_data: priceData, quantity: 1 }],
       mode: plan === 'monthly' ? 'subscription' : 'payment',
       success_url: 'https://landing-chi-lovat.vercel.app/success?session_id={CHECKOUT_SESSION_ID}',
       cancel_url: 'https://landing-chi-lovat.vercel.app/pricing',
-      metadata: { currency, plan }
+      metadata: { plan, currency }
     });
 
     return res.redirect(303, session.url);
