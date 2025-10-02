@@ -1,7 +1,6 @@
 import { Redis } from '@upstash/redis';
 
 export default async function handler(req, res) {
-  // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -22,12 +21,18 @@ export default async function handler(req, res) {
 
   // Validate format
   if (!licenseKey.startsWith('CB-') || licenseKey.length !== 27) {
+    console.log('Invalid format:', licenseKey);
     return res.json({ valid: false, tier: 'free', reason: 'Invalid format' });
   }
 
   try {
     const redisUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
     const redisToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+
+    if (!redisUrl || !redisToken) {
+      console.error('Redis environment variables not set!');
+      return res.status(500).json({ error: 'Database not configured' });
+    }
 
     const redis = new Redis({
       url: redisUrl,
@@ -37,8 +42,9 @@ export default async function handler(req, res) {
     // Get license data
     const licenseDataStr = await redis.get(`license:${licenseKey}`);
 
+    console.log('License lookup:', licenseKey, 'Found:', !!licenseDataStr);
+
     if (!licenseDataStr) {
-      // Log failed attempt
       await logFailedVerification(redis, req.headers['x-forwarded-for'] || 'unknown');
       return res.json({ valid: false, tier: 'free', reason: 'License not found' });
     }
@@ -67,19 +73,18 @@ export default async function handler(req, res) {
     // Log successful verification
     const today = new Date().toISOString().split('T')[0];
     await redis.incr(`verify:${licenseKey}:${today}`);
-    await redis.expire(`verify:${licenseKey}:${today}`, 86400 * 7); // Keep 7 days
+    await redis.expire(`verify:${licenseKey}:${today}`, 86400 * 7);
 
-    // Track device fingerprint (optional - for abuse detection)
+    // Track device fingerprint (optional)
     if (deviceFingerprint) {
       await redis.sadd(`devices:${licenseKey}`, deviceFingerprint);
-      
-      // Alert if too many devices (potential abuse)
       const deviceCount = await redis.scard(`devices:${licenseKey}`);
       if (deviceCount > 5) {
-        console.warn(`License ${licenseKey} used on ${deviceCount} devices - potential abuse`);
-        // Optional: auto-revoke or send alert
+        console.warn(`License ${licenseKey} used on ${deviceCount} devices`);
       }
     }
+
+    console.log('License verified successfully:', licenseKey);
 
     return res.json({ 
       valid: true, 
@@ -99,7 +104,11 @@ export default async function handler(req, res) {
 }
 
 async function logFailedVerification(redis, ip) {
-  const today = new Date().toISOString().split('T')[0];
-  await redis.incr(`failed:${ip}:${today}`);
-  await redis.expire(`failed:${ip}:${today}`, 86400);
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    await redis.incr(`failed:${ip}:${today}`);
+    await redis.expire(`failed:${ip}:${today}`, 86400);
+  } catch (e) {
+    console.error('Failed to log verification attempt:', e);
+  }
 }
