@@ -2,16 +2,33 @@ const API_URL = 'https://landing-chi-lovat.vercel.app';
 let extractedCodeBlocks = [];
 let userTier = 'free';
 let licenseKey = null;
+let lastVerified = 0;
 
-// Load license dari storage
-chrome.storage.sync.get(['licenseKey', 'tier'], async (result) => {
+// ========================================
+// INITIALIZATION & LICENSE VERIFICATION
+// ========================================
+
+// Load license & verify on startup
+chrome.storage.sync.get(['licenseKey', 'tier', 'lastVerified'], async (result) => {
   if (result.licenseKey) {
     licenseKey = result.licenseKey;
-    await verifyLicense(licenseKey);
+    lastVerified = result.lastVerified || 0;
+    
+    // Re-verify if last check > 6 hours ago
+    const sixHoursAgo = Date.now() - (6 * 60 * 60 * 1000);
+    
+    if (lastVerified < sixHoursAgo) {
+      await verifyLicense(licenseKey);
+    } else {
+      userTier = result.tier || 'free';
+    }
+  } else {
+    userTier = 'free';
   }
-  userTier = result.tier || 'free';
+  updateUI();
 });
 
+// Verify license with server
 async function verifyLicense(key) {
   try {
     const response = await fetch(`${API_URL}/api/verify-license`, {
@@ -21,31 +38,109 @@ async function verifyLicense(key) {
     });
     
     const data = await response.json();
+    
     if (data.valid) {
       userTier = data.tier;
-      chrome.storage.sync.set({ tier: data.tier });
+      chrome.storage.sync.set({ 
+        tier: data.tier,
+        lastVerified: Date.now(),
+        expiresAt: data.expiresAt
+      });
+      return true;
     } else {
+      // License invalid - downgrade to free
       userTier = 'free';
-      chrome.storage.sync.set({ tier: 'free' });
+      licenseKey = null;
+      chrome.storage.sync.set({ 
+        tier: 'free',
+        licenseKey: null,
+        lastVerified: Date.now()
+      });
+      
+      // Show reason to user
+      if (data.reason) {
+        showLicenseError(data.reason);
+      }
+      return false;
     }
   } catch (error) {
     console.error('License verification failed:', error);
+    
+    // Grace period: allow if last verified < 24h ago
+    const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
+    
+    if (lastVerified > twentyFourHoursAgo) {
+      console.log('Using cached license (grace period)');
+      return true;
+    }
+    
+    // After grace period, downgrade to free
+    userTier = 'free';
+    return false;
   }
 }
 
+function showLicenseError(reason) {
+  const statusDiv = document.getElementById('status');
+  statusDiv.innerHTML = `
+    <div style="color:#dc2626;font-weight:700;font-size:14px;margin-bottom:10px;">
+      ⚠️ License Issue: ${reason}
+    </div>
+    <div style="font-size:12px;color:rgba(255,255,255,0.6);margin-bottom:12px;">
+      Please check your license or upgrade to Pro.
+    </div>
+    <button onclick="window.open('${API_URL}/pricing')" style="padding:12px 24px;background:linear-gradient(135deg,#dc2626,#991b1b);color:white;border:none;border-radius:10px;cursor:pointer;font-weight:700;font-size:13px;width:100%;">
+      Get Valid License
+    </button>
+  `;
+}
+
+// ========================================
+// USAGE TRACKING & RATE LIMITING
+// ========================================
+
 async function trackUsage() {
-  if (userTier === 'pro') return true;
+  // For Pro users: verify license BEFORE allowing extraction
+  if (userTier === 'pro' && licenseKey) {
+    // Re-verify license for extra security
+    const isValid = await verifyLicense(licenseKey);
+    if (!isValid) {
+      userTier = 'free';
+      // Continue to free tier check below
+    } else {
+      return true; // Pro verified, allow extraction
+    }
+  }
   
+  // Free tier - check daily limit
   const userId = await getOrCreateUserId();
   
   try {
     const response = await fetch(`${API_URL}/api/track-usage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId, tier: userTier })
+      body: JSON.stringify({ 
+        userId, 
+        tier: userTier,
+        licenseKey: licenseKey || null // Send license for server-side verification
+      })
     });
     
     const data = await response.json();
+    
+    // Check if server downgraded user
+    if (data.downgraded || data.expired) {
+      userTier = 'free';
+      licenseKey = null;
+      chrome.storage.sync.set({ tier: 'free', licenseKey: null });
+      
+      if (data.expired) {
+        showLicenseError('License expired');
+      } else {
+        showLicenseError('License invalid');
+      }
+      return false;
+    }
     
     if (!data.canUse) {
       showUpgradePrompt(data);
@@ -55,7 +150,8 @@ async function trackUsage() {
     return true;
   } catch (error) {
     console.error('Track usage failed:', error);
-    return true; // Allow on error
+    // On network error, allow extraction but log error
+    return true;
   }
 }
 
@@ -63,7 +159,8 @@ async function getOrCreateUserId() {
   const result = await chrome.storage.local.get(['userId']);
   if (result.userId) return result.userId;
   
-  const userId = 'user_' + Math.random().toString(36).substr(2, 9);
+  // Generate unique user ID with timestamp
+  const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
   await chrome.storage.local.set({ userId });
   return userId;
 }
@@ -82,7 +179,40 @@ function showUpgradePrompt(data) {
   `;
 }
 
-// Extract Button
+// ========================================
+// UI UPDATE
+// ========================================
+
+function updateUI() {
+  // Update Pro badge if user is Pro
+  const header = document.querySelector('.header');
+  const existingBadge = document.getElementById('pro-badge');
+  
+  if (userTier === 'pro' && !existingBadge) {
+    const badge = document.createElement('div');
+    badge.id = 'pro-badge';
+    badge.style.cssText = `
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: linear-gradient(135deg, #dc2626, #991b1b);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: bold;
+      color: white;
+    `;
+    badge.textContent = '⭐ PRO';
+    header.appendChild(badge);
+  } else if (userTier !== 'pro' && existingBadge) {
+    existingBadge.remove();
+  }
+}
+
+// ========================================
+// EXTRACT CODE BLOCKS
+// ========================================
+
 document.getElementById('extractBtn').addEventListener('click', async () => {
   const canProceed = await trackUsage();
   if (!canProceed) return;
@@ -135,6 +265,10 @@ document.getElementById('extractBtn').addEventListener('click', async () => {
     statusDiv.innerHTML = `❌ Error: ${error.message}`;
   }
 });
+
+// ========================================
+// FILE MANAGEMENT
+// ========================================
 
 function updateStats() {
   const statsContainer = document.getElementById('statsContainer');
@@ -254,7 +388,10 @@ function togglePreview(index) {
   }
 }
 
-// Send Button
+// ========================================
+// SEND TO VS CODE
+// ========================================
+
 document.getElementById('sendBtn').addEventListener('click', async () => {
   const statusDiv = document.getElementById('status');
   
@@ -263,7 +400,7 @@ document.getElementById('sendBtn').addEventListener('click', async () => {
     return;
   }
 
-  // Update filenames dari input
+  // Update filenames from input
   extractedCodeBlocks.forEach((block, index) => {
     const input = document.getElementById(`filename-${index}`);
     if (input && input.value.trim()) {
@@ -296,11 +433,14 @@ document.getElementById('sendBtn').addEventListener('click', async () => {
       statusDiv.innerHTML = `❌ Failed: ${data.message}`;
     }
   } catch (err) {
-    statusDiv.innerHTML = '❌ Server offline! Run: <code>node server.js</code>';
+    statusDiv.innerHTML = '❌ Server offline! Run: <code>npm start</code> in vscode-server folder';
   }
 });
 
-// Extract function (runs in page context)
+// ========================================
+// CODE EXTRACTION (PAGE CONTEXT)
+// ========================================
+
 function extractCodeBlocks() {
   const codeBlocks = [];
   const seenContent = new Set();
