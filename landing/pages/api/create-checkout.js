@@ -32,15 +32,13 @@ export default async function handler(req, res) {
       priceData.recurring = { interval: 'month' };
     }
 
-    // Get site URL dari env atau dari headers
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || `https://${req.headers.host}`;
-
+    // HARDCODE URL
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       line_items: [{ price_data: priceData, quantity: 1 }],
       mode: plan === 'monthly' ? 'subscription' : 'payment',
-      success_url: `${siteUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${siteUrl}/pricing`,
+      success_url: 'https://landing-chi-lovat.vercel.app/success?session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: 'https://landing-chi-lovat.vercel.app/pricing',
       metadata: { currency, plan }
     });
 
