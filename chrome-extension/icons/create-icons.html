@@ -1,41 +1,86 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Icon Generator</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Code Bridge - Icon Generator</title>
 </head>
-<body>
-  <canvas id="canvas16" width="16" height="16"></canvas>
-  <canvas id="canvas48" width="48" height="48"></canvas>
-  <canvas id="canvas128" width="128" height="128"></canvas>
+<body style="background:#1a1a1a;padding:40px;font-family:Arial;">
+  <h1 style="color:white;">Code Bridge Pro - Icon Generator</h1>
+  <p style="color:#888;">Click buttons to download icons</p>
+  
+  <canvas id="canvas16" width="16" height="16" style="display:none;"></canvas>
+  <canvas id="canvas48" width="48" height="48" style="display:none;"></canvas>
+  <canvas id="canvas128" width="128" height="128" style="display:none;"></canvas>
+  
+  <div style="margin-top:20px;">
+    <button onclick="downloadIcon(16)" style="padding:12px 24px;background:#dc2626;color:white;border:none;border-radius:8px;cursor:pointer;margin:5px;font-weight:bold;">
+      Download 16x16
+    </button>
+    <button onclick="downloadIcon(48)" style="padding:12px 24px;background:#dc2626;color:white;border:none;border-radius:8px;cursor:pointer;margin:5px;font-weight:bold;">
+      Download 48x48
+    </button>
+    <button onclick="downloadIcon(128)" style="padding:12px 24px;background:#dc2626;color:white;border:none;border-radius:8px;cursor:pointer;margin:5px;font-weight:bold;">
+      Download 128x128
+    </button>
+  </div>
+  
+  <div id="preview" style="margin-top:30px;padding:20px;background:#2a2a2a;border-radius:8px;">
+    <p style="color:white;font-weight:bold;">Preview:</p>
+    <div style="background:white;padding:20px;border-radius:8px;display:inline-block;">
+      <img id="preview16" style="margin:10px;">
+      <img id="preview48" style="margin:10px;">
+      <img id="preview128" style="margin:10px;">
+    </div>
+  </div>
 
   <script>
-    function createIcon(size, canvasId) {
-      const canvas = document.getElementById(canvasId);
+    function createIcon(size) {
+      const canvas = document.getElementById(`canvas${size}`);
       const ctx = canvas.getContext('2d');
       
-      // Background gradient
+      // Clear canvas
+      ctx.clearRect(0, 0, size, size);
+      
+      // Background gradient (red to dark red)
       const gradient = ctx.createLinearGradient(0, 0, size, size);
       gradient.addColorStop(0, '#dc2626');
       gradient.addColorStop(1, '#991b1b');
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, size, size);
       
-      // Lightning emoji
-      ctx.font = `bold ${size * 0.6}px Arial`;
+      // Border
+      ctx.strokeStyle = '#7f1d1d';
+      ctx.lineWidth = size * 0.05;
+      ctx.strokeRect(0, 0, size, size);
+      
+      // Lightning emoji ⚡
+      ctx.font = `bold ${size * 0.65}px Arial`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText('⚡', size/2, size/2);
       
-      // Download
-      const link = document.createElement('a');
-      link.download = `icon${size}.png`;
-      link.href = canvas.toDataURL();
-      link.click();
+      return canvas.toDataURL('image/png');
     }
     
-    createIcon(16, 'canvas16');
-    createIcon(48, 'canvas48');
-    createIcon(128, 'canvas128');
+    function downloadIcon(size) {
+      const dataUrl = createIcon(size);
+      const link = document.createElement('a');
+      link.download = `icon${size}.png`;
+      link.href = dataUrl;
+      link.click();
+      
+      // Update preview
+      document.getElementById(`preview${size}`).src = dataUrl;
+    }
+    
+    // Auto-generate previews on load
+    window.onload = () => {
+      [16, 48, 128].forEach(size => {
+        const dataUrl = createIcon(size);
+        document.getElementById(`preview${size}`).src = dataUrl;
+      });
+    };
   </script>
 </body>
 </html>
